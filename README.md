@@ -14,5 +14,6 @@ as well as applications to real-world problems.
 
 ## Extension
 Recommended resource for further and detailed review of ISIR:
-- Both lectures slides and videos can be found at [Introduction to Statistical Learning With Applications in R](http://fs2.american.edu/alberto/www/analytics/ISLRLectures.html). I have reviewed this book and post detailed note as well.
+- Both lectures slides and videos can be found at [Introduction to Statistical Learning With Applications in R](http://fs2.american.edu/alberto/www/analytics/ISLRLectures.html). 
+- I have reviewed this book and post detailed [ISIR Lecture notes](https://github.com/MengyaoHuang/Data-Mining-ISIR/blob/master/Data%20Mining%20syllabus.pdf) as well.
 
