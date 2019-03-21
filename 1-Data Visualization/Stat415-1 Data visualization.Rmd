@@ -1,0 +1,166 @@
+---
+title: "Stat415-homework1"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### Homework1.1
+1. Consider the students of Stats 415 in W¡¯18 as your sample of interest.
+
+(a) Name one variable related to age you could collect or measure
+on this sample in each of the following categories: a categorical(
+nominal) variable, an ordinal variable, an interval variable,
+and a ratio variable.
+Answer:
+categorical variable: age over 23 and age below 23
+ordinal variable: age below 18, age between 18-20, age between 21-23,age between 24-26 and age over 26
+interval variable: student's age
+ratio variable: the percentage of students whose age ranges from 18 to 30
+
+(b) Name a population about which we could plausibly make inferences
+on the variables you listed, based on the data collected
+from this sample.
+Answer:
+All the students from Stat-415 course
+
+(c) Name a population about which we could not make valid inferences
+on the variables based on the data collected from this
+sample.
+Answer: 
+All the students from Stat-415 course whose age is 23
+
+#### Homework1.2
+2. Consider a document-term matrix, where fij is the frequency of the
+jth word (term) in the ith document and n is the number of documents.
+
+(a) What is the effect of this transformation if a term occurs in one
+document? In every document?
+If it occurs in one document, original frequency would multiply by log(n) to get updated frequency through this transformation.
+If it occurs in every document, updated frequency would become zero directly through this transformation.
+
+(b) What might be the purpose of this transformation?
+I think this transformation could be used to measure the contribution of jth's frequency in ith document to the whole n documents.
+If a term occurs in more other documents, then this decreasing frequency would indicate that the contribution of frequency from a certain document would be less.
+
+#### Homework1.3
+3.Perform exploratory data analysis of the dataset and report your results.
+Comment on any interesting or significant features.Try to contain some numerical summaries for each variable and give multivariate numerical summaries (pairwise correlation) & graphical summaries.
+
+(a) Use the read.csv() function to read the data into R.
+```{r}
+#getwd()
+setwd("E:/Michigan/Courses for the second term/Data Mining-Stat415/homework1")
+data=read.csv("College.csv",header=T)
+#head(data)
+```
+(b) Look at the data using the fix() function. The first column is
+just the name of each university.
+```{r}
+#give each row a name corresponding to the appropriate university
+rownames(data) = data[,1]
+#head(data)
+fix(data)
+#eliminate the first column of names in the data matrix before performing numerical operations
+data = data[,-1]
+#head(data)
+```
+(c) Numerical summaries for all variables can be easily obtained using
+the summary() function. However, you may want to use
+as.factor command first to tell R which variables are categorical.
+```{r}
+attach(data)
+# treat data$Private as a categorical variable
+as.factor(Private)
+colnames(data)
+summary(data)
+```
+Analysis: 
+According to the summary result, 212 samples are public universities, while others are private universities.
+The number of Applications received ranges from 81 to 48094.The median and mean of number of applications are 1558 and 3002 separately.The number of accepted applicants ranges from 72 to 26330 and the number of enrolled students ranges from 35 to 6392. The percent of new students from Top 10% ranges from 1% to 96%, while the percent of new students from Top 25% ranges from 9% to 100%.
+The number of full time undergraduates ranges from 139 to 31643, while the number of part time undergraduates ranges from 1 to 21936.
+The cost could be divided into several parts. Outstate tuition could range from 2340 to 21700. Cost for Room.Board ranges from 1780 to 8124. Cost for books ranges from 96 to 2340,while personal spending ranges from 250 to 6800. Variables related to cost indicates that the total cost would be quite different among students and universities.
+There is also more information about faculty and educational resource.The percent of faculty with PhD's ranges from 8% to 103%.However, the percent should not overcome 100 thus it could be indicated that some errors may exist here and filtration may be needed. Percent of faculty with terminal degree ranges from 24% to 100%. S.F.Ratio ranges from 2.5 to 39.8. Percent of alumni who donate ranges from 0% to 64%. Instructional expenditure per student ranges from 3186 to 56233 and graduation rate ranges from 10% to 118%.Similarly, this percentage should not over come thus the data may need to be dealt with before further analysis. In general, there is much difference between universities in faculty and educational resource.
+
+(d) A scatter plots matrix can be produced with the pairs() function.Recall you can select a subset of variables to plot. For instance, to plot the first 10 columns only of a data matrix A, you can apply the pairs() function to the matrix A[,1:10]. You can use options to plot different things on the diagonal of the scatter plot matrix, such as a histogram or simply the variable name.
+```{r}
+data1=data[,3:5]
+Scatter_data=data.frame(data1,Grad.Rate)
+pairs(Scatter_data)
+cor(Scatter_data)
+```
+According to the result, it is obvious that there is positive relationship between number of applicants accepted and Number of new students enrolled and the correlation is 0.91163666.Besides, there is positive relationship between Graduate Rate and Top10 percent and the correlation is 0.49498923. It indicates that better students would lead to higher graduate rate.
+
+
+(e) The plot() function will produce side-by-side boxplots if one
+of the variables is categorical. For example, you can make a sideby-
+side boxplot by plotting Outstate versus Private.
+```{r}
+attach(data)
+Private_private=which(Private=="Yes")
+Private_public=which(Private=="No")
+private=Outstate[Private_private]
+public=Outstate[Private_public]
+cate_outstate=c("private","public")
+boxplot(private,public,names=cate_outstate,horizontal=TRUE,main="Outstate$Private vs Public",xlab="Tuition")
+```
+According to this side by side plot, we can find that outstate tuition for public universities would be lower compared with the tuition for private universities. To be more specific, the median tuition for public universities would be around 6000-7000, while the median tuition for private universities has been over 10000.
+
+
+(f) You can create new variables by transforming original variables. For example, consider a new categorical variable, Elite, which divides universities into two groups based on whether or not the proportion of students coming from the top 10% of their high school classes exceeds 50%.
+```{r}
+Elite=rep("No", nrow(data))
+Elite[data$Top10perc>50]="Yes"
+Elite=as.factor(Elite)
+data=data.frame(data,Elite)
+summary(Elite)
+# compare the percent of faculty with Grad.Rate between Elite and non-Elite
+Grad.Rate_Elite=which(Elite=="Yes")
+Grad.Rate_NonElite=which(Elite=="No")
+Grad.Rate_elite=Grad.Rate[Grad.Rate_Elite]
+Grad.Rate_nonelite=Grad.Rate[Grad.Rate_NonElite]
+cate_Grad.Rate=c("Grad.Rate_elite","Grad.Rate_nonelite")
+boxplot(Grad.Rate_elite,Grad.Rate_nonelite,names=cate_Grad.Rate,horizontal=TRUE,main="Grad.Rate$Elite vs Non-Elite",xlab="Number")
+```
+According to the side-by-side boxplot, it is obvious that Elite universities have higher graduate rate.
+
+(g) The hist() function produces histograms, and its options can be used to specify number of bins, etc. You may find the command par(mfrow=c(2,3)) useful
+```{r}
+par(mfrow=c(2,3))
+attach(data)
+Private=as.numeric(Private)
+hist(Private,main="Private")
+hist(Apps,main="Apps")
+hist(Accept,main="Accept")
+hist(Enroll,main="Enroll")
+hist(Top10perc,main="Top10perc")
+hist(Top25perc,main="Top25perc")
+```
+```{r}
+par(mfrow=c(2,3))
+attach(data)
+hist(F.Undergrad,main="F.Undergrad")
+hist(P.Undergrad,main="P.Undergrad")
+hist(Outstate,main="Outstate")
+hist(Room.Board,main="Room.Board")
+hist(Books,main="Books")
+hist(Personal,main="Personal")
+```
+
+```{r}
+attach(data)
+par(mfrow=c(1,3))
+boxplot(PhD,main="PhD")
+boxplot(Terminal,main="Terminal")
+boxplot(S.F.Ratio,main="S.F.Ratio")
+```
+```{r}
+attach(data)
+par(mfrow=c(1,3))
+boxplot(perc.alumni,main="perc.alumni")
+boxplot(Expend,main="Expend")
+boxplot(Grad.Rate,main="Grad.Rate")
+```
+
