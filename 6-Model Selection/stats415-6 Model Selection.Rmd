@@ -1,0 +1,185 @@
+---
+title: "homework6"
+output: word_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+### 2.
+(a) Split the data set into a training set and a test set. Fix the random seed to the value 23456 and choose 30% (rounded down
+to the nearest integer) of the data at random for testing, and use the rest for training.
+```{r}
+library(ISLR)
+```
+```{r}
+set.seed(23456)
+College = na.omit(College)
+index = sample(nrow(College), size = trunc(0.70 * nrow(College)))
+College_train = College[index,]
+College_test = College[-index,]
+```
+(b) Fit a linear model using least squares on the training set, and report the training and test error obtained.
+```{r}
+# All the predictors here are numeric
+lm.mod = lm(Apps~.,data = College_train)
+summary(lm.mod)
+# train error
+lm.pred_train = predict(lm.mod,College_train)
+mean((College_train$Apps-lm.pred_train)^2)
+# test error
+lm.pred_test = predict(lm.mod,College_test)
+mean((College_test$Apps-lm.pred_test)^2)
+```
+Comment: According to the calculation, the training error is 1228844 and the test error is 738611.2.
+(c) Perform forward and backward selection on the previous model with the threshold a = 0.05, and report which variables they
+recommend including in the final model. Report training and test errors for their final models.
+```{r}
+# define the MSE function
+mse=function(model, y, data){
+yhat=predict(model, data)
+mean((y - yhat)^2)
+}
+```
+```{r}
+library(leaps)
+```
+```{r}
+# forward checking
+regfit.fwd=regsubsets(Apps~.,data=College_train[,-1],nvmax=16,method="forward")
+regfit.fwd.summary = summary(regfit.fwd)
+# backward checking
+regfit.bwd=regsubsets(Apps~.,data=College_train[,-1],nvmax=16,method="backward")
+regfit.bwd.summary = summary(regfit.bwd)
+# plot
+par(mfrow=c(1,2))
+plot(regfit.fwd.summary$rss,xlab="Variables for forward",ylab="RSS",type="l")
+plot(regfit.fwd.summary$adjr2,xlab="Variables for forward",ylab="Adjusted RSq",type="l")
+which.max(regfit.fwd.summary$adjr2)
+par(mfrow=c(1,2))
+plot(regfit.fwd.summary$cp,xlab="Variables for forward",ylab="Cp",type='l')
+which.min(regfit.fwd.summary$cp)
+points(11,regfit.fwd.summary$cp[11],col="red",cex=2,pch=20)
+which.min(regfit.fwd.summary$bic)
+plot(regfit.fwd.summary$bic,xlab="Variables for forward",ylab="BIC",type='l')
+points(9,regfit.fwd.summary$bic[9],col="red",cex=2,pch=20)
+# plot
+par(mfrow=c(1,2))
+plot(regfit.bwd.summary$rss,xlab="Variables for backward",ylab="RSS",type="l")
+plot(regfit.bwd.summary$adjr2,xlab="Variables for backward",ylab="Adjusted RSq",type="l")
+which.max(regfit.bwd.summary$adjr2)
+par(mfrow=c(1,2))
+plot(regfit.bwd.summary$cp,xlab="Variables for backward",ylab="Cp",type='l')
+which.min(regfit.bwd.summary$cp)
+points(11,regfit.bwd.summary$cp[11],col="red",cex=2,pch=20)
+which.min(regfit.bwd.summary$bic)
+plot(regfit.bwd.summary$bic,xlab="Variables for backward",ylab="BIC",type='l')
+points(9,regfit.bwd.summary$bic[9],col="red",cex=2,pch=20)
+```
+```{r}
+# model selection
+library(SignifReg)
+forward = SignifReg(Apps~., College_train, alpha = 0.05, direction = "forward",criterion = "p-value", correction = "None")
+backward = SignifReg(Apps~., College_train, alpha = 0.05, direction = "backward",criterion = "p-value", correction = "None")
+summary(forward)
+summary(backward)
+```
+```{r}
+coef.forward = coef(forward)
+coef.backward = coef(backward)
+# calculate the train error and test error
+test.mat=model.matrix(Apps~.,data=College_test)
+train.mat=model.matrix(Apps~.,data=College_train)
+# forward checking
+pred_train.forward=train.mat[,names(coef.forward)]%*%coef.forward
+pred_test.forward=test.mat[,names(coef.forward)]%*%coef.forward
+val.errors_train=mean((College_train$Apps-pred_train.forward)^2)
+val.errors_test=mean((College_test$Apps-pred_test.forward)^2)
+val.errors_train
+val.errors_test
+# backward checking
+pred_train.backward=train.mat[,names(coef.backward)]%*%coef.backward
+pred_test.backward=test.mat[,names(coef.backward)]%*%coef.backward
+val.errors_train=mean((College_train$Apps-pred_train.backward)^2)
+val.errors_test=mean((College_test$Apps-pred_test.backward)^2)
+val.errors_train
+val.errors_test
+
+```
+Comment: According to the result, the suitable number of variables in the final model would be among 9 and 11.Forward and backward selection both indicate that the final model should contain 11 variables respectively. Corresponding variables and their coefficients have been shown above. Corresponding train error and test error are 1237635 and 724578.
+
+(d) Use AIC and BIC to select a potentially smaller model instead of the model in question (b). Report which variables they recommend including, and the training and test errors for their final models.
+```{r}
+regfit.AICBIC=regsubsets(Apps~.,data=College_train,nvmax=17)
+regfit.AICBIC.summary = summary(regfit.AICBIC)
+which.min(regfit.AICBIC.summary$cp)
+which.min(regfit.AICBIC.summary$bic)
+plot(regfit.AICBIC,scale="Cp")
+plot(regfit.AICBIC,scale="bic")
+# AIC choice
+coef.AIC = coef(regfit.AICBIC,12)
+pred_train=train.mat[,names(coef.AIC)]%*%coef.AIC
+pred_test=test.mat[,names(coef.AIC)]%*%coef.AIC
+val.errors_train=mean((College_train$Apps-pred_train)^2)
+val.errors_test=mean((College_test$Apps-pred_test)^2)
+val.errors_train
+val.errors_test
+# BIC choice
+coef.BIC = coef(regfit.AICBIC,9)
+pred_train=train.mat[,names(coef.BIC)]%*%coef.BIC
+pred_test=test.mat[,names(coef.BIC)]%*%coef.BIC
+val.errors_train=mean((College_train$Apps-pred_train)^2)
+val.errors_test=mean((College_test$Apps-pred_test)^2)
+val.errors_train
+val.errors_test
+```
+Comment: According to the result, there will be 12 variables in the final model through AIC and 9 variables in the final model through BIC. For AIC, the variables contain PrivateYes, Accept, Top10perc, Top25perc, Enroll, F.undergrad, Outstate, Room.Board, Grad.Rate, P.Undergrad, PhD and Expend. For BIC, the variables contain Accept, Top10perc, Top25perc, Enroll, F.undergrad, Outstate, Room.Board, Expend and Grad.Rate. FOr AIC, the train error and test error are 1232282 and 732162.9. For BIC, the train error and test error are 1263519 and 760046.7.
+
+(e) Fit a ridge regression model on the training set, with lambda chosen by cross-validation. Report the training and test errors.
+```{r}
+library(glmnet)
+X_train = model.matrix(Apps~., College_train)[, -1]
+y_train = College_train$Apps
+X_test = model.matrix(Apps~., College_test)[, -1]
+y_test = College_test$Apps
+grid=10^seq(10,-2,length=100)
+ridge.mod=glmnet(X_train,y_train,alpha=0,lambda=grid)
+dim(coef(ridge.mod))
+set.seed(23456)
+cv.out=cv.glmnet(X_train,y_train,alpha=0)
+plot(cv.out)
+bestlam=cv.out$lambda.min
+bestlam
+predict(ridge.mod,s=433,type="coefficients")[1:17,]
+# training MSE
+ridge.pred_train=predict(ridge.mod,s=bestlam,newx=X_train)
+mean((ridge.pred_train-y_train)^2)
+# test MSE
+ridge.pred_test=predict(ridge.mod,s=bestlam,newx=X_test)
+mean((ridge.pred_test-y_test)^2)
+```
+Comment: According to the result, corresponding variables'coefficients have been shown above. Lambda is 433 and train error and test error are 1641351 and 720118.4.
+
+(f) Fit a lasso model on the training set, with lambda chosen by cross-validation. Report which variables are included in the model, and
+the training and test errors obtained.
+```{r}
+lasso.mod=glmnet(X_train,y_train,alpha=1,lambda=grid)
+dim(coef(lasso.mod))
+set.seed(23456)
+cv.out=cv.glmnet(X_train,y_train,alpha=1)
+plot(cv.out)
+bestlam=cv.out$lambda.min
+bestlam
+predict(lasso.mod,s=bestlam,type="coefficients")[1:18,]
+# training MSE
+lasso.pred_train=predict(lasso.mod,s=bestlam,newx=X_train)
+mean((lasso.pred_train-y_train)^2)
+# test MSE
+lasso.pred_test=predict(lasso.mod,s=bestlam,newx=X_test)
+mean((lasso.pred_test-y_test)^2)
+```
+Comment: According to the result, corresponding variables'coefficients have been shown above. Lambda is 21.53937 and train error and test error are 1286184 and 620801.4.
+
+(g) Comment on the results obtained. How accurately can we predict the number of college applications received? How much difference is there among the test errors resulting from different approaches? Which approach would you recommend for this dataset and why?
+
+Comment: According to the result shown above, The training error and test error for linear regression are 1228844 and 738611.2.Training error and test error for forward and backward selection are 1237635 and 724578. Training error and test error for AIC are 1232282 and 732162.9.Training error and test error for BIC are 1263519 and 760046.7. Training error and test error for ridge regression are 1641351 and 720118.4.Training error and test error for Lasso regression are 1286184 and 620801.4. Since the test error for Lasso regression is smaller, Lasso regression method is more suitable for this dataset here.
+
