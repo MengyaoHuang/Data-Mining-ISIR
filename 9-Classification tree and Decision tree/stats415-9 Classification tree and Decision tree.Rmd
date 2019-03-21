@@ -1,0 +1,116 @@
+---
+title: "Stat415homework9"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+2. This question uses the crabs data, available through the R package MASS. The data contain five size-related measurements on two different
+species of crabs, blue and orange, with 50 male and 50 female crabs of each species measured.
+(a) Set the random seed to 45678 and randomly select 80% of the data as your training data. Make sure you select the same number from each species/sex combination. Set the remaining 20% aside to use as test data.
+```{r}
+set.seed(45678)
+library(MASS)
+data(crabs)
+# clarify the combination index
+crabsbf = which(crabs$sp=="B" & crabs$sex=="F" )
+crabsbm = which(crabs$sp=="B" & crabs$sex=="M" )
+crabsof = which(crabs$sp=="O" & crabs$sex=="F" )
+crabsom = which(crabs$sp=="O" & crabs$sex=="M" )
+train = c(sample(crabsbf, size =trunc(0.80 *length(crabsbf))),sample(crabsbm, size =trunc(0.80 *length(crabsbm))),sample(crabsof, size =trunc(0.80 *length(crabsof))),sample(crabsom, size =trunc(0.80 *length(crabsom))))
+train_data = crabs[train,]
+test_data = crabs[-train,]
+summary(train_data)
+```
+(b) Train a classification tree to predict Species from the five numerical measurements and sex, selecting the optimal size by cross-
+validation but using no more than 8 splits. Plot the tree. Comment on which variables are used by the tree. Compute training and test errors.
+```{r}
+library(tree)
+tree.crabs = tree(sp~.-index,train_data)
+tree.pred = predict(tree.crabs,test_data,type="class")
+tree.train = predict(tree.crabs,train_data,type="class")
+summary(tree.crabs)
+# calculate the test error
+calc_class_err = function(actual, predicted){
+  mean(actual != predicted)
+}
+calc_class_err(predicted = tree.pred, actual = test_data$sp)
+# plot the tree
+plot(tree.crabs)
+text(tree.crabs,pretty=0,cex=0.5)
+# improve the tree by CV
+set.seed(45678)
+cv.crabs = cv.tree(tree.crabs,FUN = prune.misclass)
+cv.crabs
+plot(cv.crabs$size,cv.crabs$dev,ylab="cv error", xlab="size",type="b")
+prune.crabs=prune.misclass(tree.crabs,best=7)
+plot(prune.crabs)
+text(prune.crabs,pretty=0)
+tree.pred=predict(prune.crabs,test_data,type="class")
+table(tree.pred,test_data$sp)
+6/40
+```
+Comment: according to the output, the misclassfication training error rate is 0.04375 and misclassification test error is 0.15. After using CV method, we choose the size to be 7 and corresponding dev is 30, which is the smallest with no more than 8 splits. Simplified tree has been plotted and the corresponding test error is 0.15.Variables used in the tree are "FL","CW" and "BD".
+
+(c) Now train random forests on the data, using three randomly selected predictors at each split, and 1000 trees total. Make a variable importance plot and compare with your results for a single tree. Compute training and test errors.
+```{r}
+library(randomForest)
+set.seed(45678)
+randomforest.crabs = randomForest(sp~.-index,data=crabs,subset=train,mtry=3,ntree=1000)
+randomforest.crabs
+# Training error
+(9+13)/160
+# Test error
+randomforest.pred = predict(randomforest.crabs,newdata=test_data)
+calc_class_err(predicted = randomforest.pred, actual = test_data$sp)
+# variable importance plot
+importance(randomforest.crabs)
+varImpPlot(randomforest.crabs)
+```
+Comment: according to the output, the training error is 0.1375 and the test error is 0.05. The test error indicates that Random Forest method performs better than a single tree. And FL & BD are by far the two most important variables.
+
+(d) Finally, train AdaBoost on the data. Plot the training and test errors as a function of the number of trees constructed by boosting up to 1000. Compute training and test errors.
+```{r}
+library(gbm)
+set.seed(45678)
+# turn "B" and "O" into 0 and 1
+levels(train_data$sp) = c(0,1)
+levels(test_data$sp) = c(0,1)
+levels(crabs$sp) = c(0,1)
+# calculate the error
+test_error = rep(0,1000)
+training_error = rep(0,1000)
+for (i in 1:1000){
+  boost.crabs = gbm(sp~.-index,data=train_data,distribution="adaboost",n.trees=i)
+  # training
+  adatrain.pred = predict.gbm(boost.crabs,newdata=train_data,n.trees=i)
+  train_class = rep(0,160)
+  for(j in 1:160){
+    train_class[j] = ifelse(adatrain.pred[j] >= 0.5, 1, 0)
+  }
+  # train error
+  training_error[i] = calc_class_err(predicted = train_class, actual = train_data$sp)
+  # test
+  adatest.pred = predict.gbm(boost.crabs,newdata=test_data,n.trees=i)
+  adatest.pred_class = rep(0,length(adatest.pred))
+  for(j in 1:length(adatest.pred_class)){
+    adatest.pred_class[j] = ifelse(adatest.pred[j] >= 0.5, 1, 0)
+  }
+  # test error
+  test_error[i] = calc_class_err(predicted = adatest.pred_class, actual = test_data$sp)
+}
+plot(test_error)
+plot(training_error)
+```
+```{r}
+training_error[which(training_error == min(training_error))]
+test_error[which(test_error == min(test_error))]
+which(training_error == min(training_error))
+which(test_error == min(test_error))
+```
+Comment: According to the output, the test error is 0.2 and the smallest training error is 0.2625. The output shows that both training error and test error decrease first then turn to be high again. Since Boost method may cause overfitting, M can not be too large. In this dataset, when n.trees=294, both training error and test error are the smallest.
+
+(e) Comment on which method appears to perform best for this dataset and how consistent the results are across methods.
+From the above output, for a single tree, the training error is 0.04375 and the test error is 0.15. For the Random Forest, the training error is 0.1375 and the test error is 0.05. For boosting method, the minimum training and test errors are 0.2625 and 0.2.Thus according to the test error, Random Forest method has best performance. 
+
