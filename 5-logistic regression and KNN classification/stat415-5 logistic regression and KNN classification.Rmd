@@ -1,0 +1,181 @@
+---
+title: "stat415-homework5"
+output: word_document
+---
+1. Perform logistic regression on the training data in order to predict mpg01 using the four quantitative variables you chose in Homework 4.Comment on the significance of the coefficients.
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(ISLR)
+median_mpg = median(Auto$mpg)
+mpg01 = rep("0", nrow(Auto))
+for (i in 1:nrow(Auto)){
+  if (Auto$mpg[i] > median_mpg){
+    mpg01[i] = "1"
+  }
+}
+# add mpg01 to original data
+data_new = cbind(Auto, mpg01)
+# treat data_new$mpg01 as a categorical variable
+summary(data_new)
+```
+```{r}
+set.seed(12345)
+table(data_new$mpg01)
+mpg01_0 = which(data_new$mpg01 == 0)
+mpg01_1 = which(data_new$mpg01 == 1)
+train_index = c(sample(mpg01_0, size = trunc(0.80 * length(mpg01_0))),
+                sample(mpg01_1, size = trunc(0.80 * length(mpg01_1))))
+# Divide traing data and test data
+Auto_train = data_new[train_index, ]
+Auto_test = data_new[-train_index, ]
+```
+```{r}
+# The most associated quantitative variables are horsepower, weight, displacement and acceleration
+library(MASS)
+# Logistic Regression
+mpg01 = as.numeric(mpg01)
+data_new2 = cbind(Auto, mpg01) # numeric mpg01
+Auto_train2 = data_new2[train_index, ]
+Auto_test2 = data_new2[-train_index, ]
+glm.fit = glm(mpg01 ~ horsepower + weight + acceleration + displacement, data=Auto_train2, family = binomial)
+summary(glm.fit)
+```
+Comment: The Logistic model has been performed above. According to the p-value, the coefficients of Horsepower and displacement are quite significant since they are less than a=0.05. The coefficients of weight and acceleration are not significant here.
+
+2. Report the training and the test errors for logistic regression. Make a plot similar to the plots in HW4, showing true and predicted class labels from logistic regression plotted against the same two variables you used before.
+```{r}
+# turn prediction into proper prob
+expit = function(x) exp(x) / (1 + exp(x))
+glm_train_pred = predict(glm.fit, Auto_train2)
+glm_test_pred = predict(glm.fit, Auto_test2)
+
+# decide 0 or 1 based on prob estimation for training data set
+trainPrediction = rep("0", nrow(Auto_train2))
+trainPrediction[expit(glm_train_pred) > 0.5] = "1"
+table(trainPrediction, Auto_train2$mpg01, dnn = c("Predicted", "Actual"))
+trainPrediction = as.numeric(trainPrediction)
+glm_train_pred_data = cbind(Auto_train2[,-1],trainPrediction)
+
+# decide 0 or 1 based on prob estimation for testing data set
+testPrediction = rep("0", nrow(Auto_test2))
+testPrediction[expit(glm_test_pred) > 0.5] = "1"
+table(testPrediction, Auto_test2$mpg01, dnn = c("Predicted", "Actual"))
+testPrediction = as.numeric(testPrediction)
+glm_test_pred_data = cbind(Auto_test2[,-1],testPrediction)
+
+# define the error function
+calc_class_err = function(actual, predicted){
+  mean(actual != predicted)
+}
+
+# training error
+calc_class_err(predicted = trainPrediction, actual = Auto_train2$mpg01)
+# test error
+calc_class_err(predicted = testPrediction, actual = Auto_test2$mpg01)
+```
+Comment: According to the result, the training error for Logistic Regression is 0.1089744 and the test error for Logistic Regression is 0.0875.
+```{r}
+# Plot the orginal training data
+Auto_train2$mpg01 = as.factor(Auto_train2$mpg01)
+plot(Auto_train2$horsepower,Auto_train2$weight, col = c("blue","red")[Auto_train2$mpg01], xlab = "horsepower", ylab = "weight", main = "True class vs Predicted class by Logistic")
+# Plot the predicted training dat
+trainPrediction = as.factor(trainPrediction)
+points(glm_train_pred_data$horsepower,glm_train_pred_data$weight, pch = c(2,3)[trainPrediction])
+legend("bottomright", c("true_mpg01-0","true_mpg01-1","pred_mpg01-0","pred_mpg01-1"), col=c("blue", "red", "black", "black"),pch=c(1,1,2,3))
+
+# Plot the original test data
+Auto_test2$mpg01 = as.factor(Auto_test2$mpg01)
+plot(Auto_test2$horsepower,Auto_test2$weight, col = c("blue","red")[Auto_test2$mpg01], xlab = "horsepower", ylab = "weight", main = "True class vs Predicted class by Logistic")
+# Plot the predicted test data
+testPrediction = as.factor(testPrediction)
+points(glm_test_pred_data$horsepower,glm_test_pred_data$weight, pch = c(2,3)[testPrediction])
+legend("bottomright", c("true_mpg01-0","true_mpg01-1","pred_mpg01-0","pred_mpg01-1"), col=c("blue", "red", "black", "black"),pch=c(1,1,2,3))
+```
+Comment: true and predicted class labels from logistic regression against the same two variables have been plotted.
+
+3. Using your fitted model, estimate the probability of a car having above median mpg if its four predictors you used are all at the median values for the training dataset.
+```{r}
+median_displacement = median(Auto_train2$displacement)
+median_horspower = median(Auto_train2$horsepower)
+median_weight = median(Auto_train2$weight)
+median_acceleration = median(Auto_train2$acceleration)
+result = 13.2877094 -0.0579451*median_horspower -0.0010545*median_weight -0.1340170*median_acceleration -0.0153865*median_displacement
+prob = expit(result)
+prob
+```
+Comment: According to the result,the prob of a car having above median mpg if its four predictors are at the median values is 0.6187401.
+
+4. Perform KNN classification on the training data. Make plots of the training classification error and the test classification error as a function of the number of neighbors K (or 1=K; if you use 1=K, make sure the x-axis is on the log scale). Which K gives the best performance on the training data? On the test data?
+```{r}
+library(class)
+trainX = as.matrix(Auto_train2[c("horsepower", "acceleration","displacement","weight")])
+testX = as.matrix(Auto_test2[c("horsepower", "acceleration","displacement","weight")])
+trainX = scale(trainX)
+testX = scale(testX)
+set.seed(1)
+kvals = c(1:10, 15, 50, 100, 150)
+knnTrainErr = rep(0,length(kvals))
+knnTestErr = rep(0,length(kvals))
+for (i in 1:length(kvals)) {
+knn.pred1 = knn(train = trainX, test = trainX, cl = Auto_train2$mpg01, k=kvals[i])
+knn.pred2 = knn(train = trainX, test = testX, cl = Auto_train2$mpg01, k=kvals[i])
+knnTrainErr[i] <- mean(knn.pred1 != Auto_train2$mpg01)
+knnTestErr[i] <- mean(knn.pred2 != Auto_test2$mpg01)
+}
+plot(knnTrainErr ~ kvals, type = "b",col = "black")
+points(knnTestErr ~ kvals, type = "b", col = "dark red")
+kval_train = kvals[which(knnTrainErr == min(knnTrainErr))]
+kval_train
+kval_test = kvals[which(knnTestErr == min(knnTestErr))]
+kval_test
+
+```
+Comment: when k=1, it gives the best performance on the training data. When k=8, it gives the best performance on the test data.
+
+5. Report the training and the test errors for KNN with your choice of K. Make a plot similar to the plots in HW4, showing true and predicted class labels from KNN plotted against the same two variables you used before.
+```{r}
+# choose k=5 for KNN model 
+# Training data
+(knnTrainErr[5])
+# Test data
+(knnTestErr[5])
+
+# plot for training data
+knn.pred1 = knn(train = trainX, test = trainX, cl = Auto_train2$mpg01, k=5)
+knn_train_pred_data = cbind(Auto_train2[,-1],knn.pred1)
+Auto_train2$mpg01 = as.factor(Auto_train2$mpg01)
+plot(Auto_train2$horsepower,Auto_train2$weight, col = c("blue","red")[Auto_train2$mpg01], xlab = "horsepower", ylab = "weight", main = "True class vs Predicted class by KNN")
+# Plot the predicted train data
+knn.pred1 = as.factor(knn.pred1)
+points(knn_train_pred_data$horsepower,knn_train_pred_data$weight, pch = c(2,3)[knn.pred1])
+legend("bottomright", c("true_mpg01-0","true_mpg01-1","pred_mpg01-0","pred_mpg01-1"), col=c("blue", "red", "black", "black"),pch=c(1,1,2,3))
+
+# plot for test data
+knn.pred2 = knn(train = trainX, test = testX, cl = Auto_train2$mpg01, k=5)
+knn_test_pred_data = cbind(Auto_test2[,-1],knn.pred2)
+knn.pred2 = as.factor(knn.pred2)
+plot(Auto_test2$horsepower,Auto_test2$weight, col = c("blue","red")[Auto_test2$mpg01], xlab = "horsepower", ylab = "weight", main = "True class vs Predicted class by KNN")
+points(knn_test_pred_data$horsepower,knn_test_pred_data$weight, pch = c(2,3)[knn.pred2])
+legend("bottomright", c("true_mpg01-0","true_mpg01-1","pred_mpg01-0","pred_mpg01-1"), col=c("blue", "red", "black", "black"),pch=c(1,1,2,3))
+```
+Comment: the training error for KNN is 0.06410256 and the test error for KNN is 0.075. Corresponding plots have been shown above and k is 5.
+
+6. Can you answer question 3 with KNN regression? If yes, give the answer. If not, explain why not and what you can report instead for a car with the four predictors all at the median values.
+```{r}
+test_point = c(median_horspower, median_acceleration,median_displacement,median_weight)
+data = as.matrix(Auto_test2[c("horsepower", "acceleration","displacement","weight")])
+data_append = t(data.frame(t(data),test_point))
+data_append = scale(data_append)
+# predict
+point_predict = knn(train = trainX, test = data_append, cl = Auto_train2$mpg01, k=kvals[3])
+point_predict[length(point_predict)]
+```
+Comment: we can not give the answer for question 3 since the KNN method is a non-parametric approach. It fails to tell the importance of predictors and can not give coefficients or p-values.But we can use these four median value to deduce which class this point should be in. According to the prediction result, this point's mpg01 should be 1, which indicates that the probability of its mpg being higher than median is larger than 0.5.
+
+
+7. Compare and contrast the performance of LDA, QDA (take from HW 4), logistic regression, and KNN on this dataset. What do your results suggest about the distribution of the data? About the nature of the boundary between classes?
+Comment: the training error and test error of LDA are 0.1185897 and 0.075. The training error and test error of QDA are 0.1025641 and 0.0625. The training error and test error of Logistic regression are 0.1089744 and 0.0875. The training error and test error of KNN are 0.06410256 and 0.075. Thus, KNN is more suitable for this data and QDA also works better than the other two methods. 
+Since QDA works well in fitting, it is very likely that samples for different classes have have different variance. Also, LDA and logistic assume linear boundary while KNN and QDA assume non-linear boundary. According to the error estimation, it is very likely that the decision boundary is non-linear,especially for quandratic boundary.
+
