@@ -1,0 +1,81 @@
+---
+title: "Stat415-homework2"
+output: word_document
+---
+### Homework 2.1
+1. Fit a multiple regression model to predict Sales using all other variables in the model. Report the values of coefficients, and how well the model fits (using R2). Include a plot of residuals and comment on any interesting features.
+```{r}
+library(ISLR)
+```
+
+```{r}
+library(ISLR)
+data(Carseats)
+# Multiple regression model
+model1=lm(Sales~CompPrice+Income+Advertising+Population+Price+ShelveLoc+Age+Education+Urban+US,data=Carseats)
+summary(model1)
+```
+Comment: The coefficients have been reported in the above Estimate terms.The Adjusted R-squared is 0.8698 and it is quite close to 1, which indicates that the model fits data quite well. The coefficients of predictors have been shown above in the Estimate term. According to the result, Price, Age, Education and USYes have negative influence on the sales, while other predictors have positive influence. Besides, according to the p-value result, Population, Education, Urban and Us have quite large p-value, which indicates that these four predictors are not useful in this regression model. 
+```{r}
+plot(model1$residuals~model1$fitted.values,main="Residuals",xlab="Fitted Values",ylab="Residuals")
+abline(h=0)
+summary(model1$residuals)
+```
+Comment: According to the residuals result, the median and mean of residuals are 0.02113 and 0. Although the median of residuals is positive and there are more positive residuals in this regression model, residuals can still be considered as distributed randomly around zero. Thus there is no obvious nonlinear trend in residuals and we can conclude that linear regression model could fit the data well.
+
+### Homework 2.2
+2. Which variables correspond to significant p-values? What is the null hypothesis the p-values are testing?
+
+Answer: significant p-value should be smaller than a=0.05. Thus CompPrice, Income, Advertising, Price, ShelveLoc and Age should correspond to significant p-values. The null hypothesis is the single coefficient is zero. The p-values are testing whether their corresponding coefficients are zero or not. If p-values are quite small(<0.05), then we can reject the null hypothesis and conclude that the coefficients are significant. 
+
+### Homework 2.3
+3. Drop all the variables that are not significant in the previous model.Fit the linear model with the remaining variables. It will include one categorical variable, ShelveLoc. Compare the fit of the model to the previous one using R2.
+```{r}
+model2=lm(Sales~CompPrice+Income+Advertising+Price+ShelveLoc+Age,data=Carseats)
+summary(model2)
+```
+Comment: the Adjusted R-squared is 0.8697. Compared with 0.8698 in the previous model, R^2 here is smaller but generally speaking, they are approximately the same. After dropping useless predictors, the current regression model becomes simpler but still keeps the regression effect.Thus these predictors should be dropped in this regression process.
+
+### Homework 2.4
+4. Use the anova() to formally compare the two models and state your conclusion. Comment on the difference between their R2 in light of your conclusion.
+```{r}
+anova(model1,model2)
+```
+Comment: the corresponding null hypothesis is all the coefficients of population, Education, Urban and US are equal to zero. Since the p-value for F-test is 0.358, which is larger than a=0.05. Thus we can not reject the null hypothesis and we can conclude that all these four coefficients should be zero and these two models are the same. Their corresponding Adjusted R^2 are 0.8698 and 0.8697, which also indicates that there is little difference between two models' regression effect.
+
+### Homework 2.5
+5. Write out the model from the previous question in equation form and interpret the coefficients. Be careful with the coefficients of the categorical variable.
+Answer:
+The model is: Sales=5.475226+0.092571*CompPrice+0.015785*Income+0.115903*Advertising-0.095319*Price-0.046128*Age+4.835675*ShelveLocGood+1.951993*ShelveLocMedium
+Interpret:
+The regression coefficients are interpreted as follows. 
+When other factors are held constant, one unit increase in CompPrice will increase the Sales by 0.092571 unit.
+When other factors are held constant, one unit increase in Income will increase the Sales by 0.015785 unit.
+When other factors are held constant, one unit increase in Advertising will increase the Sales by 0.115903 unit.
+When other factors are held constant, one unit increase in Price will decrease the Sales by 0.095319 unit.
+When other factors are held constant, one unit increase in Age will decrease the Sales by 0.046128 unit.
+Interpret for Categorical variables:
+The average difference in Sales between ShelveLocGood and ShelveLocBad with the same other variables is 4.835675
+The average difference in Sales between ShelveLocMedium and ShelveLocBad with the same other variables is 1.951993
+
+### Homework 2.6
+6. Add an interaction term between the categorical variable ShelveLoc and the variable Price. Refit the model, report the estimated coefficients, and interpret the coefficients of the interaction term. Do the p-values associated with them suggest the interaction term is necessary?
+```{r}
+table(Carseats$ShelveLoc)
+model3=lm(Sales~CompPrice+Income+Advertising+Price+ShelveLoc+Age+Price:ShelveLoc,data=Carseats)
+summary(model3)
+```
+Comment: coefficients have been shown above in the Estimate terms. The regression coefficients are interpreted as follows.
+0.005619 is the average difference in the relationship between Sales and Price between ShelveLocGood and ShelveLocBad 
+when other variables keep the same.
+0.003650 is the average difference in the relationship between Sales and Price between ShelveLocMedium and ShelveLocBad
+when other variables keep the same.
+P-values of interactions are 0.3730 and 0.4984, which are larger than a=0.05. Thus those interaction terms are unnecessary.
+
+### Homework 2.7
+7. Use the anova() to formally compare model from Q3 to the model from Q6 and state your conclusion.
+```{r}
+anova(model2,model3)
+```
+Comment: the corresponding null hypothesis here is all the coefficients of interactions are zero. Since the p-value for F-test is 0.6593, which is larger than a=0.05.Thus we can not reject the null hypothesis and we can conclude that these two models are the same and coefficients of interactions should be zero.
+
