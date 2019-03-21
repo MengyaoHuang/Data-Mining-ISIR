@@ -1,5 +1,5 @@
 # Data-Mining-ISIR
-Data mining based on Introduction to Statistical learning
+Data mining based on Introduction to Statistical learning. All models covered would be implemented in Rstudio.
 
 ## Topics covered
 This course will provide an introduction to main topics in data mining / statistical learning, including: 
