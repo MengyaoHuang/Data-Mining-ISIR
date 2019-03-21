@@ -1,0 +1,97 @@
+---
+title: "STAT415homework7"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+1. Perform Principal Component Analysis on the predictors. Make a screeplot of the eigenvalues. How many eigevalues does one need to explain 90% of the variance in the data? Report loadings of the first two PCs.Interpret them if you can.
+```{r}
+library(ISLR)
+```
+```{r}
+X = model.matrix(Apps~., data = College)[,-1]
+XPCA = prcomp(x = X, center = T, scale = F)
+summary(XPCA)
+# get the eigenvalues
+R = cov(X)
+e = eigen(R) #solving for the eigenvalues and eigenvectors from the correlation matrix
+L = e$values #placing the eigenvalues in L
+#This is the proportion of variance accounted for by each PC
+Lupdate = L
+Lupdate
+plot(L,main="Scree Plot",ylab="Eigenvalues",xlab="Component number",type='b')
+abline(h=1, lty=2)
+proportion = rep(0, length(Lupdate))
+sum = 0
+for (i in 1:length(Lupdate)){
+  sum = sum + Lupdate[i]/sum(Lupdate)
+  proportion[i] = sum
+}
+proportion
+min(which(proportion>0.9))
+# find loadings
+XPCA$rotation[,1:2]
+```
+Comment: The screeplot has been shown above. According to the proportion result, 3 eigenvalues are needed to explain 90% of the variance in the data. The first two PCs' loadings have been shown above. The first component accounts for the most variance (48.6%). To show the percentage of variance accounted for by each variable¨C divide the eigenvalues by the number of variables since each scaled variable has a variance of 1. Also note, a property of the principal component scores is that they are not correlated with each other¨C they are completely orthogonal. 
+
+2. Fit a PCR model on the training set, with the number of principal components K chosen by cross-validation. Report the training and test error obtained, along with the value of K selected.
+```{r}
+library(pls)
+```
+```{r}
+set.seed(23456)
+test_id = sample(1:nrow(College), size = trunc(0.3 * nrow(College)))
+origin = c(1:nrow(College))
+train_id = origin[-c(test_id)]
+test = College[test_id,]
+train = College[-test_id,]
+CollegePCR = pcr(Apps~., data = College, subset = train_id, scale = TRUE, validation = "CV")
+summary(CollegePCR)
+# choose principal components k
+validationplot(CollegePCR, val.type = "MSEP", legendpos = "topright")
+# Training error
+CollegePCR.train = predict(CollegePCR, train[,names(train)!="Apps"], ncomp=17)
+PCRTrainMSE = mean((CollegePCR.train - College[-test_id,"Apps"])^2)
+PCRTrainMSE
+# test error
+CollegePCR.test = predict(CollegePCR, test[,names(test)!="Apps"], ncomp=17)
+PCRTestMSE = mean((CollegePCR.test - College[test_id,"Apps"])^2)
+PCRTestMSE
+```
+Comment: According to the plot, we can find that when k=17, the MSEP is  the smallest. Thus we choose 17 principal components through CV. Then the corresponding training error is 993164.6 and test error is 1300431.
+
+3. Fit a PLS model on the training set, with the number of principal components K chosen by cross-validation. Report the training and
+test error obtained, along with the value of K selected.
+```{r}
+CollegePLS = plsr(Apps~., data = College, subset = train_id, scale = TRUE, validation = "CV")
+summary(CollegePLS)
+# choose principal components k
+validationplot(CollegePLS, val.type = "MSEP", legendpos = "topright")
+# Training error
+CollegePLS.train = predict(CollegePLS, train[,names(train)!="Apps"], ncomp=6)
+PLSTrainMSE = mean((CollegePLS.train - College[-test_id,"Apps"])^2)
+PLSTrainMSE
+# test error
+CollegePLS.test = predict(CollegePLS, test[,names(test)!="Apps"], ncomp=6)
+PLSTestMSE = mean((CollegePLS.test - College[test_id,"Apps"])^2)
+PLSTestMSE
+```
+Comment: According to the plot, we can find that when k=6, the MSEP is  quite small and keeps almost constant later. Thus we choose 12 principal components through CV. Then the corresponding training error is 1014074 and test error is 1374134.
+
+4. Comment on the results obtained, including also the methods from homework 6. Which approach would you recommend for this dataset
+and why?
+Comment: 
+For the PCR method, the corresponding training error is 993164.6 and test error is 1300431. 
+For the PLS method, the corresponding training error is 1014074 and test error is 1374134. 
+For the Linear Regression method, the corresponding training error is 993164 and test error is 1300431. 
+For the Forward selection method, the training and test error is 1043037 and 1334782. 
+For the backward selection method, the training and test error is 1021693 and 1355206.
+For the AIC, the training and test error are 1001215 and 1282321.
+For the BIC, the training and test error are 1033273 and 1380054.
+For the ridge regression, the training error is 1385774 and the test error is 1223317. 
+For the lasso regression,the training MSE is 993997 and test MSE is 1293278.
+According to the result shown above, the Ridge Regression method has the smallest test error(1223317). Thus Ridge Regression method is the most suitable for this dataset.
+
+
