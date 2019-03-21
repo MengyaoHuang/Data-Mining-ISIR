@@ -1,0 +1,140 @@
+---
+title: "Stat415-homework4"
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+2. In this problem, you will develop a model to predict whether a given car will be classified as having high or low gas mileage based on the
+Auto data set.
+(a) Create a binary variable, mpg01, that is equal to 1 if the value of mpg for that car is above the median mpg, and 0 otherwise. You
+may then want to use the data.frame() function to create a single data set containing both mpg01 and the other Auto variables.
+```{r}
+library(ISLR)
+median_mpg = median(Auto$mpg)
+mpg01 = rep("0", nrow(Auto))
+for (i in 1:nrow(Auto)){
+  if (Auto$mpg[i] > median_mpg){
+    mpg01[i] = "1"
+  }
+}
+# add mpg01 to original data
+data_new = cbind(Auto, mpg01)
+# treat data_new$mpg01 as a categorical variable
+summary(data_new)
+```
+Comment: the variable mpg01 has been added to the new dataset.
+
+(b) Make some exploratory plots to investigate the association between mpg01 and other variables. Describe your findings. Which of the features seem most likely to be useful in predicting mpg01? Scatterplots and boxplots may be useful tools to answer this question. (Note: do not use the mpg variable that was used to create mpg1).
+```{r}
+# scatter plots
+# round mark represents mpg01 = 0
+pairs(data_new[3:7], col=c("blue","red")[data_new$mpg01], pch=c(1,2)[data_new$mpg01])
+# Side-by-side Boxplots
+par(mfrow=c(1,4))
+boxplot(data_new$mpg01,data_new$cylinders, main = "cylinders",ylab = "cylinders")
+boxplot(data_new$mpg01,data_new$displacement, main = "displacement",ylab = "displacement")
+boxplot(data_new$mpg01,data_new$horsepower, main = "horsepower",ylab = "horsepower")
+boxplot(data_new$mpg01,data_new$weight, main = "weight",ylab = "weight")
+par(mfrow=c(1,3))
+boxplot(data_new$mpg01,data_new$acceleration, main = "acceleration",ylab = "acceleration")
+boxplot(data_new$mpg01,data_new$year, main = "year",ylab = "year")
+boxplot(data_new$mpg01,data_new$origin, main = "origin",ylab = "origin")
+```
+Comment: 
+Firstly, we need to check the relationship between other variables.According to the scatter plot, we can find that displacement, horsepower and weight are positive correlated and acceleration is almost negative correlated with those three variables.
+Secondly, in the boxplot of horsepower, weight, displacement and acceleration, the range of values for two kinds of classes would be quite different. Also, for these several variables, corresponding scatter plots show that points scattered seperately in the plot of displacement, horsepower, weight and acceleration. It indicates that samples with different mpg01 value have large difference in horsepower, weight and acceleration.Thus we can adopt these three features to predict mpg01.
+
+(c) Split the data into a training set and a test set: fix the random seed to the value 12345, and randomly select 80% of the observations
+(round down to the nearest integer) from each class to be the training data. Use the rest as test data.
+```{r}
+set.seed(12345)
+table(data_new$mpg01)
+mpg01_0 = which(data_new$mpg01 == 0)
+mpg01_1 = which(data_new$mpg01 == 1)
+train_index = c(sample(mpg01_0, size = trunc(0.80 * length(mpg01_0))),
+                sample(mpg01_1, size = trunc(0.80 * length(mpg01_1))))
+# Divide traing data and test data
+Auto_train = data_new[train_index, ]
+Auto_test = data_new[-train_index, ]
+nrow(Auto_train)
+nrow(Auto_test)
+```
+Comment: the data has been divided into traing part and test part. The length of training data is 312 and the length of test data is 80.
+
+(d) Perform LDA on the training data in order to predict mpg01 using four quantitative variables that seem most associated with mpg01 based on (b). Report the training and test errors. Make a plot of the training data points, using two variables which appear to be most associated with the class as your axes. Using different colors to show the true values of mpg01, and different plotting symbols to show predicted values.
+```{r}
+# The most associated quantitative variables are horsepower, weight, displacement and acceleration
+library(MASS)
+```
+```{r}
+mpg01 = as.numeric(mpg01)
+data_new2 = cbind(Auto, mpg01) # numeric mpg01
+Auto_train2 = data_new2[train_index, ]
+Auto_test2 = data_new2[-train_index, ]
+lda.fit = lda(mpg01 ~ horsepower + weight + acceleration + displacement, data=Auto_train2)
+lda.fit
+names(predict(lda.fit, Auto_train2))
+# show the predicted class for each sample 
+head(predict(lda.fit, Auto_train2)$class, n = 5)
+# show the prob in each class
+head(predict(lda.fit, Auto_train2)$posterior, n = 5)
+```
+
+```{r}
+lda_train_pred = predict(lda.fit, Auto_train2)$class
+lda_train_pred_data = cbind(Auto_train2[,-1],lda_train_pred)
+lda_test_pred = predict(lda.fit, Auto_test2)$class
+# define the error function
+calc_class_err = function(actual, predicted){
+  mean(actual != predicted)
+}
+# training error
+calc_class_err(predicted = lda_train_pred, actual = Auto_train2$mpg01)
+# test error
+calc_class_err(predicted = lda_test_pred, actual = Auto_test2$mpg01)
+```
+Comment: According to the result, the training error is 0.1185897 and the test error is 0.075.
+```{r}
+mpg01 = as.factor(mpg01)
+plot(Auto_train2$horsepower,Auto_train2$weight, col = c("blue","red")[mpg01], xlab = "horsepower", ylab = "weight", main = "True class vs Predicted class by LDA")
+points(lda_train_pred_data$horsepower,lda_train_pred_data$weight, pch = c(2,3)[lda_test_pred])
+legend("bottomright", c("true_mpg01-0","true_mpg01-1","pred_mpg01-1","pred_mpg01-0"), col=c("blue", "red", "black", "black"),pch=c(1,1,2,3))
+```
+Comment: According to the analysis, we adopt horsepower and weight to plot. The meaning of corresponding colors and shapes have been explained in the label of the plot.
+
+(e) Perform QDA on the training data in order to predict mpg01 using the same variables you used for LDA. Report the training and test errors. Make a plot analogous to the one you made for LDA.
+```{r}
+qda.fit = qda(mpg01 ~ horsepower + weight + acceleration + displacement, data=Auto_train2)
+qda.fit
+names(predict(qda.fit, Auto_train2))
+# show the predicted class for each sample 
+head(predict(qda.fit, Auto_train2)$class, n = 5)
+# show the prob in each class
+head(predict(qda.fit, Auto_train2)$posterior, n = 5)
+```
+```{r}
+qda_train_pred = predict(qda.fit, Auto_train2)$class
+qda_test_pred = predict(qda.fit, Auto_test2)$class
+qda_train_pred_data = cbind(Auto_train2[,-1],qda_train_pred)
+# training error
+calc_class_err(predicted = qda_train_pred, actual = Auto_train2$mpg01)
+# test error
+calc_class_err(predicted = qda_test_pred, actual = Auto_test2$mpg01)
+```
+Comment: According to the result, the training error is 0.1025641 and the test error is 0.0625.
+```{r}
+mpg01 = as.factor(mpg01)
+plot(Auto_train2$horsepower,Auto_train2$weight, col = c("blue","red")[mpg01], xlab = "horsepower", ylab = "weight", main = "True class vs Predicted class by QDA")
+points(qda_train_pred_data$horsepower,qda_train_pred_data$weight, pch = c(2,3)[qda_test_pred])
+legend("bottomright", c("true_mpg01-0","true_mpg01-1","pred_mpg01-1","pred_mpg01-0"), col=c("blue", "red", "black", "black"),pch=c(1,1,2,3))
+```
+Comment: According to the analysis, we adopt horsepower and weight to plot. The meaning of corresponding colors and shapes have been explained in the label of the plot.
+
+(f) Compare and contrast the performance of LDA and QDA. What do your results suggest about the class-specific covariances?
+Comment: According to the result shown above, the training error and test error of LDA are 0.1185897 and 0.075. The training error and test error of QDA are 0.1025641 and 0.0625. Both training error and test error of QDA are smaller than
+those of LDA. Thus QDA is more suitable here to fit the data. Since QDA assumes that the covariance in each class should be different, then we should also assume the class specific covariances to be different in the data set.
