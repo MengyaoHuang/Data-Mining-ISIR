@@ -1,0 +1,142 @@
+---
+title: "Stat415homework8"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+2. This question uses the following variables from the Boston data: dis (the weighted mean of distances to five Boston employment centers),
+nox (nitrogen oxides concentration in parts per 10 million), and indus (proportion of non-retail business acres). We are interested in predicting the air quality variable nox.
+
+(a) Set the random seed to 34567 and randomly split the data into 80% training and 20% test data.The test data is not used until the last question.
+```{r}
+set.seed(34567)
+library(MASS)
+train = sample(1:nrow(Boston),trunc(nrow(Boston)*0.8))
+```
+(b) Fit a smooth nonlinear function on the training data to predict nox from dis (one predictor). Do it three different ways: polynomial regression, natural spline, and smoothing spline. For each method, choose the relevant "degrees of freedom" parameter by cross-validation, and report and comment on the regression output.
+```{r}
+# polynomial regression
+# use 10-fold crossvalidation by setting K=10 argument
+set.seed(34567)
+library(boot)
+cv.error_poly = rep(0,10)
+for (i in 1:10){
+  fit=glm(nox~poly(dis,i),data=Boston[train,])
+  cv.error_poly[i]=cv.glm(Boston[train,], fit, K=10)$delta[1]
+}
+plot(1:10,cv.error_poly,xlab = "d",ylab = "CV error",type = "l")
+which(cv.error_poly==min(cv.error_poly))
+lm.fit = lm(nox~poly(dis, 7), data=Boston[train,])
+summary(lm.fit)
+
+# natural spline
+set.seed(34567)
+library(splines)
+cv.error_ns = rep(0,15)
+for (i in 1:15){
+fit=glm(nox~ns(dis,df = i),data=Boston[train,])
+cv.error_ns[i]=cv.glm(Boston[train,], fit, K=10)$delta[1]
+}
+proper_d = which.min(cv.error_ns)
+proper_d
+plot(1:15,cv.error_ns,xlab = "d",ylab = "CV error",type = "l")
+ns.fit = lm(nox~ns(dis,df = proper_d),data=Boston[train,])
+summary(ns.fit)
+
+# smoothing spline
+attach(Boston)
+fit.ss=smooth.spline(dis,nox,cv=TRUE)
+fit.ss
+fit.ss$df
+fit.ss$lambda
+dislims=range(dis)
+plot(dis,nox,xlim=dislims,cex=.5,col="darkgrey")
+title("Smoothing Spline")
+lines(fit.ss,col="blue",lwd=2)
+```
+Comment: for polynomial regression, df=7 is suitable for the model since the CV error at df=7 is small and the model is simpler relatively.For natural splines, df=9 is suitable for the model since the CV error at df=9 is the smallest. For smoothing splines, the proper df should be 15.42984 and corresponding lambda is 9.029534e-05. According to the regression output, the Adjusted R-squared of natural splines is a litte better than the one of polynomial regression. The RSS of smoothing splines (1.785015) and the leave-one-out error (0.003676223) have also been shown. It is obvious the RSS of smoothing splines is larger than the other two methods.
+
+(c) For each of the methods in the previous question, make three plots: the fitted curve with your optimally selected degrees of freedom (df), one with less df, one with more df. Comment on your results.
+```{r}
+# polynomial regression
+dislims=range(dis)
+dis.grid=seq(from=dislims[1],to=dislims[2])
+plot(dis,nox,xlim=dislims,cex=.5,col="darkgrey")
+title("polynomial regression")
+preds_pr=predict(lm.fit,newdata=data.frame(dis=dis.grid))
+lm.fit1 = lm(nox~poly(dis, 4), data=Boston[train,])
+lm.fit2 = lm(nox~poly(dis, 12), data=Boston[train,])
+preds_pr1=predict(lm.fit1,newdata=data.frame(dis=dis.grid))
+preds_pr2=predict(lm.fit2,newdata=data.frame(dis=dis.grid))
+lines(dis.grid,preds_pr,col="blue",lwd=2)
+lines(dis.grid,preds_pr1,col="red",lwd=2)
+lines(dis.grid,preds_pr2,col="green",lwd=2)
+legend("topright",legend=c("d=4","d=7","d=12"),col=c("red","blue","green"),lty=1,lwd=2,cex=.8)
+
+# natural spline
+agelims=range(dis)
+plot(dis,nox,xlim=agelims,cex=.5,col="darkgrey")
+title("natural spline")
+preds_ns=predict(ns.fit,newdata=data.frame(dis=dis.grid))
+ns.fit1 = lm(nox~ns(dis,df = 5),data=Boston[train,])
+ns.fit2 = lm(nox~ns(dis,df = 13),data=Boston[train,])
+preds_ns1=predict(ns.fit1,newdata=data.frame(dis=dis.grid))
+preds_ns2=predict(ns.fit2,newdata=data.frame(dis=dis.grid))
+lines(dis.grid,preds_ns,col="blue",lwd=2)
+lines(dis.grid,preds_ns1,col="red",lwd=2)
+lines(dis.grid,preds_ns2,col="green",lwd=2)
+legend("topright",legend=c("d=5","d=9","d=13"),col=c("red","blue","green"),lty=1,lwd=2,cex=.8)
+
+# smoothing spline
+agelims=range(dis)
+plot(dis,nox,xlim=agelims,cex=.5,col="darkgrey")
+title("Smoothing Spline")
+fit.20=smooth.spline(dis,nox,df=20)
+fit.10=smooth.spline(dis,nox,df=10)
+lines(fit.ss,col="blue",lwd=2)
+lines(fit.10,col="red",lwd=2)
+lines(fit.20,col="green",lwd=2)
+legend("topright",legend=c("10 DF","15.43 DF","20 DF"),col=c("red","blue","green"),lty=1,lwd=2,cex=.8)
+```
+Comment: the plot has been shown above. According to the plots, the plot with smaller degree of freedom is always smooth compared with those with larger degree of freedom. But the plot with larger df should be more accurate in fitting data. Thus, the plot with optimal df is a kind of balance between accuracy and smooth.
+
+(d) Fit a GAM on the training data to predict nox from dis and indus.Use what you learned in the previous question to select the best nonlinear function to model dis, and use the same type of function for indus. Plot the results and explain your findings.
+```{r}
+# s() for smoothing, ns() for natural spline, poly() for polynomial
+# fit.ss=smooth.spline(dis,nox,cv=TRUE)
+# gam2=gam(wage~s(year,4)+s(age,6.79)+education,data=Wage[train,])
+# smoothing spline
+library(splines)
+fit.ss2 = smooth.spline(indus,nox,cv=TRUE)
+df1 = fit.ss2$df
+df1
+library(gam)
+gam1=gam(nox~s(dis,15.42984)+s(indus,21.66602),data=Boston[train,])
+summary(gam1)
+par(mfrow=c(1,2))
+plot(gam1, se=TRUE,col="blue")
+```
+Comment: according to the plots, none of these plots is linear. It indicates that natural splines method is suitable for both predictors in this model.
+
+(e) Report the test MSEs for all the methods you have implemented with relevant parameters suggested by cross-validation. Comment on your results.
+```{r}
+# calculate the test MSE for polynomial regression
+test.lm = predict(lm.fit,Boston[-train,])
+# for natural splines
+test.ns = predict(ns.fit,Boston[-train,])
+# for smoothing splines
+test.ss = predict(fit.ss,dis[-train])
+# for GAM model
+test.gam = predict(gam1,Boston[-train,])
+nox.test= nox[-train]
+error.poly = mean((nox.test-test.lm)^2)
+error.ns = mean((nox.test-test.ns)^2)
+error.ss = mean((nox.test-test.ss$y)^2)
+error.gam = mean((nox.test-test.gam)^2)
+d = data.frame("TestMSE" = c(error.poly, error.ns, error.ss, error.gam))
+rownames(d) = c("poly regression", "natural spline", "smoothing spline","GAM")
+knitr::kable(d)
+```
+Comment: according to the result shown above, the test error for GAM is the smallest and it should be the most suitable method to fit the data. In fact, natural splines, smoothing splines and GAM are approximately the same since their errors are similar, while for the polynomial regression, the test error is larger than the other three methods.
