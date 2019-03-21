@@ -1,0 +1,153 @@
+---
+title: "Stat415homework11"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+2. Consider the USArrests data from the textbook.
+(a) Using hierarchical clustering with complete linkage and Euclidean distance, cluster the states. Plot the dendrogram.
+```{r}
+data1 = USArrests
+summary(data1)
+hc.complete = hclust(dist(data1), method="complete")
+plot(hc.complete,main="Complete Linkage", xlab="", sub="", cex=.9)
+```
+Comment: the clustering process and corresponding dendrogram have been shown above. 
+(b) Cut the dendrogram at a height that results in three distinct clusters. Report the states belonging to each of the three clusters. Make a silhouette coefficient plot and comment on any interesting features.
+```{r}
+# three distinct clusters
+cutree(hc.complete, 3)
+# silhouette coefficient
+library(cluster)
+sil.complete = silhouette(cutree(hc.complete,3),dist = dist(data1))
+```
+Comment: The states and their corresponding labels have been shown above.
+```{r}
+plot(sil.complete)
+```
+Comment: According to this plot, most of the silhouette coefficients are between 0.4 and 0.6 and almost all the coefficients are above 0.2. The average silhouette width is 0.53. The clustering is more effective if the coefficient is closer to 1. The plot indicates that although the result is not so perfect, it is still acceptable. Since there are no large negative values, there are no poor clustering points. 
+
+(c) Repeat questions (a) and (b) using single linkage instead.
+```{r}
+hc.single = hclust(dist(data1), method="single")
+plot(hc.single, main="Single Linkage", xlab="", sub="", cex=.9)
+```
+```{r}
+cutree(hc.single, 3)
+sil.single = silhouette(cutree(hc.single,3),dist = dist(data1))
+```
+Comment: The states and their corresponding labels have been shown above.
+```{r}
+plot(sil.single)
+```
+Comment: According to this plot, the silhouette coefficient is 0.32 for the first group and 0 for the other two groups. The average silhouette width is 0.3. Also, there are many large negative values, which indicates that many poor clustering points exist. The plot indicates that single linkage result is quite bad for this data set. Compared with complete linkage, single linkage is not suitable here. 
+
+(d) Perform K-means clustering on the data with K = 3 and report which states belong to which clusters. Report how you initialized the algorithm. Make a slihouette coefficient plot and comment on any interesting features.
+```{r}
+set.seed(45678)
+# multiple initial cluster assignments
+value =rep(0,20)
+set.seed(45678)
+for (i in 1:20){
+  km.out=kmeans(data1,3,nstart=i)
+  value[i] = km.out$tot.withinss
+}
+value
+# K-mean clustering
+km.out=kmeans(data1,3,nstart=20)
+km.out
+```
+Comment: we decide to use nstart=20 and the result indicates that the sum of squares is equal. The states and their corresponding labels have been shown above.
+```{r}
+# use the solution from some hierarchical algorithm as initial value
+cutree(hc.complete, 3)
+hcmean1 = colMeans(data1[which(cutree(hc.complete, 3)==1),])
+hcmean2 = colMeans(data1[which(cutree(hc.complete, 3)==2),])
+hcmean3 = colMeans(data1[which(cutree(hc.complete, 3)==3),])
+hcmean= rbind(hcmean1,hcmean2,hcmean3)
+hcmean
+km.hc = kmeans(data1,centers = hcmean)
+km.hc$iter
+# coefficient plot
+set.seed(45678)
+km.out=kmeans(data1, 3, nstart=20)
+km.clusters = km.out$cluster
+data.dist=dist(data1)
+plot(silhouette(km.clusters,data.dist),main="Silhouette plot from K-means")
+```
+Comment: the algorithm stops after only one iteration.According to this plot, most of the silhouette coefficients are between 0.4 and 0.6 and almost all the coefficients are above 0.2. The average silhouette width is 0.53. The clustering is more effective if the coefficient is closer to 1. The plot indicates that although the result is not so perfect, it is still acceptable. Since there are no large negative values, there are no poor clustering points.
+
+(e) Scale all the variables to have mean 0 and standard deviation 1. Repeat questions (a)-(d) using the scaled data.
+```{r}
+# scale data
+sd.data=scale(data1)
+# a) 
+hc.complete_sd = hclust(dist(sd.data), method="complete")
+plot(hc.complete_sd,main="Complete Linkage", xlab="", sub="", cex=.9)
+```
+```{r}
+# b)
+# three distinct clusters
+cutree(hc.complete_sd, 3)
+```
+```{r}
+# silhouette coefficient
+sil.complete_sd = silhouette(cutree(hc.complete_sd,3),dist = dist(sd.data))
+plot(sil.complete_sd)
+```
+COmment: According to this plot, most of the silhouette coefficients are between 0.2 and 0.6 and almost all the coefficients are above 0.2. The average silhouette width is 0.37. The plot indicates that the result is not good since the silhouette coefficient is quite small. Also, there exists several poor clustering points.
+
+```{r}
+# c)
+hc.single_sd = hclust(dist(sd.data), method="single")
+plot(hc.single_sd, main="Single Linkage", xlab="", sub="", cex=.9)
+```
+```{r}
+cutree(hc.single_sd, 3)
+sil.single_sd = silhouette(cutree(hc.single_sd,3),dist = dist(sd.data))
+```
+```{r}
+plot(sil.single_sd)
+```
+Comment: According to this plot, the silhouette coefficient is 0.15 for the first group and 0 for the other two groups. The average silhouette width is 0.15, which is the worst in these operations. Also, there are many large negative values, which indicates that many poor clustering points exist. The plot indicates that single linkage result is quite bad for this data set.
+
+```{r}
+# d)
+set.seed(45678)
+# multiple initial cluster assignments
+value =rep(0,20)
+set.seed(45678)
+for (i in 1:20){
+  km.out_sd=kmeans(sd.data,3,nstart=i)
+  value[i] = km.out_sd$tot.withinss
+}
+value
+# K-mean clustering
+km.out_sd=kmeans(sd.data,3,nstart=20)
+km.out_sd
+```
+```{r}
+# use the solution from some hierarchical algorithm as initial value
+cutree(hc.complete_sd, 3)
+```
+```{r}
+hcmean1_sd = colMeans(data1[which(cutree(hc.complete_sd, 3)==1),])
+hcmean2_sd = colMeans(data1[which(cutree(hc.complete_sd, 3)==2),])
+hcmean3_sd = colMeans(data1[which(cutree(hc.complete_sd, 3)==3),])
+hcmean_sd = rbind(hcmean1_sd,hcmean2_sd,hcmean3_sd)
+hcmean_sd
+# coefficient plot
+set.seed(45678)
+km.out_sd=kmeans(sd.data, 3, nstart=20)
+km.clusters_sd = km.out_sd$cluster
+data.dist_sd=dist(sd.data)
+plot(silhouette(km.clusters_sd,data.dist_sd),main="Silhouette plot from K-means")
+```
+Comment: According to this plot, most of the silhouette coefficients are between 0.2 and 0.6 and almost all the coefficients are above 0.1. The average silhouette width is 0.31. The plot indicates that the result is worse than the result of unscaled data.And there is also one large negative value. 
+
+(f) What effect does scaling the variables have on hierarchical clustering? On K-means clustering? In your opinion, should the variables be scaled before clustering in this example? Explain your reasoning.
+Comment: On both hierarchical clustering and K-means clustering, the effect of scaled data is worse than the effect of the unscaled data. There are more poor clustering points and the silhouette coefficient is smaller.Thus the variables should not be scaled in this data set. Since the UrbanPop is a percent variable but not a numeric variable, then scaling the data with well-defined meaning will cause distortion. Thus scaling data will not improve the clustering effect.
+
